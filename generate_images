@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]
+    then
+    echo "Must give input video!"
+    exit 0
+fi
+
+VIDEO=$1
+OUTPUT=images
+
+ffmpeg -i ${VIDEO} -r 5 -f image2 ${OUTPUT}/image-%3d.jpg

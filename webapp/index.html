@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ST7735 Video</title>
+    <!--
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    -->
+    <link rel="stylesheet" hreF="/static/bootstrap/css/bootstrap.css">
+</head>
+<body>
+
+    <style>
+        body {
+            background-color: rgb(2, 2, 110);
+            color: white;
+        }
+        button {
+            background-color: rgb(14, 14, 221);;
+            color: white;
+            border: None;
+            border-radius: 10px;
+        }
+    </style>
+
+    <div class="container">
+        <div class="row p-5">
+            <div class="col-6">
+                <h3>Upload videos</h3>
+                <hr>
+                <form method="POST" enctype="multipart/form-data">
+
+                    <div class="row m-3">
+                        <label class="col-6">Video</label>
+                        <input class="col-6" type="file" name="video">
+                    </div>
+
+                    <div class="row m-3">
+                        <label class="col-6">FPS</label>
+                        <input class="col-6" type="number" name="fps" value="30">
+                    </div>
+
+                    <div class="row ps-5 pe-5 pb-4">
+                        <input class="col-12" type="submit" value="Upload file">
+                    </div>
+                </form>
+
+                <div class="row">
+                    <textarea class="col-12" id="text" style="height: 20em">
+                    </textarea>
+                </div>
+
+            </div>
+
+            <div class="col-6">
+                <div class="videos">
+                    <h3>Available Videos</h3>
+                    <hr>
+                    <div class="row">
+                        <button class="offset-7 col-3 m-1 p-1" onclick="stop()">Stop</button>
+                    </div>
+                    <ul>
+                        {% for video in videos %}
+                            <li class="row">
+                                <span class="col-7 m-1 p-3">{{ video.name }} - {{ video.fps }} FPS</span>
+                                <button class="col-3 m-1 p-1" onclick="play('{{ video.name }}')">Play</button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const text = document.getElementById('text');
+        text.value = '';
+
+        function play(video) {
+            fetch('/play', {
+                method: 'POST',
+                body: JSON.stringify({video: video})
+            });
+        }
+        function stop() {
+            fetch('/stop', {
+                method: 'POST'
+            })
+        }
+        function updateStatus() {
+            fetch('/status')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.msg) {
+                        text.value += res.msg;
+                        text.scrollTop = text.scrollHeight;
+                    }
+                });
+        }
+        setInterval(updateStatus, 100);
+    </script>
+
+
+</body>
+</html>

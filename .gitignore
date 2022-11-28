@@ -1,0 +1,10 @@
+images/
+videos/
+webapp/static/bootstrap/
+*.pyc
+*.mp4
+*.MOV
+*.mp3
+*.wav
+env/
+.vscode/
