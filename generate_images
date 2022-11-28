@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]
+    then
+    echo "Must give input video and output dir!"
+    exit 0
+fi
+
+VIDEO=$1
+OUTPUT=$2
+FPS=20
+
+ffmpeg -i ${VIDEO} -r ${FPS} -f image2 ${OUTPUT}/image-%3d.jpg
