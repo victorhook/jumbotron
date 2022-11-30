@@ -92,7 +92,7 @@ class VideoPlayerServer:
     def _cmd_play_video(self, kwargs: dict) -> None:
         if self._video_player is not None:
             print('Video player already playing, stopping first...')
-            self._cmd_stop_video()
+            self._cmd_stop_video(kwargs)
 
         self._video_player = VideoPlayer(
             int(kwargs.get('fps', 10)),

@@ -7,9 +7,13 @@ from threading import Thread, Event
 import time
 import pygame
 import csv
-from led import Led
+from queue import Queue
+import sys
+import pickle
 
 from display import ST7735R_Display
+
+from led import Led
 
 pygame_is_initialized = False
 
@@ -30,58 +34,58 @@ class VideoPlayer:
         self._audio_player = AudioPlayer(audio_dir)
         self._led_player   = LedPlayer(leds)
         self._playing      = Event()
-
+        
     def start(self) -> None:
         if self._playing.is_set():
             print('Video already playing!')
             return
 
+        # Get all images
+        images = self._get_images()
+        
+        fps_counter  = 0
+        frame_delay  = 1 / self._fps
+        frame        = 0
+        total_frames = len(images)
+
+        led_thread = Thread(target=self._led_player.start)
+        led_thread.start()
+        
+        #audio_thread = Thread(target=self._audio_player.start)
+        #audio_thread.start()
+
         # Set flag that we've started
         self._playing.set()
-
-        # Get all images
-        self._images = self._get_images(self._image_dir, self._width, self._height)
-
-        # Can happen if user aborts play before we've finished processing the images
-        if not self.is_playing():
-            return
-
         print('Video player starting')
 
         t0 = time.time()
-        fps_counter = 0
-        frame_delay = 1 / self._fps
-
-        audio_thread = Thread(target=self._audio_player.start)
-        led_thread = Thread(target=self._led_player.start)
-        #audio_thread.start()
-        led_thread.start()
 
         while self._playing.is_set():
+            image = images[frame]
+            frame = (frame + 1) % total_frames
 
-            for image_nbr, image in enumerate(self._images):
-                before_display = time.time()
-                self._display.show_image(image)
-                after_display = time.time()
+            before_display = time.time()
+            self._display.show_image(image)
+            after_display = time.time()
 
-                dt = after_display - t0
-                fps_counter += 1
+            dt = after_display - t0
+            fps_counter += 1
 
-                if dt > 1:
-                    print(f'\rFPS: {fps_counter}')
-                    t0 = after_display + (1 - dt)
-                    fps_counter = 0
+            if dt > 1:
+                sys.stdout.write(f'\rFPS: {fps_counter}\n')
+                t0 = after_display + (1 - dt)
+                fps_counter = 0
 
-                next_frame = before_display + frame_delay
-                if next_frame > after_display:
-                    time.sleep(next_frame - after_display)
-                    
-                if not self.is_playing():
-                    break
+            next_frame = before_display + frame_delay
+            if next_frame > after_display:
+                time.sleep(next_frame - after_display)
+                
+            if not self.is_playing():
+                break
 
         print('Video player ending')
-        #audio_thread.join()
         led_thread.join()
+        #audio_thread.join()
 
     def stop(self) -> None:
         print(self._playing.is_set())
@@ -96,12 +100,7 @@ class VideoPlayer:
     def is_playing(self) -> bool:
         return self._playing.is_set()
 
-    def _show_frame(self) -> None:
-        import time
-        #print(time.time())
-        time.sleep(.5)
-
-    def _get_images(self, image_dir: str, width: int, height: int) -> List[str]:
+    def _get_image_paths(self, image_dir: str) -> List[str]:
         image_names = []
 
         for image in os.listdir(image_dir):
@@ -117,23 +116,64 @@ class VideoPlayer:
 
         # Sort images
         image_names = sorted(image_names, key=get_image_number)
-        print(f'Found {len(image_names)} images for video...')
-
         # Create full paths
-        image_paths = map(lambda name: Path(image_dir, name), image_names)
+        image_paths = list(map(lambda name: Path(image_dir, name), image_names))
+        
+        print(f'Found {len(image_paths)} images for video...')
+        
+        return image_paths
 
-        # Create PIL images
-        print(f'Creating PIL image objects...')
-        images = [Image.open(image_path) for image_path in image_paths]
+    def pickle(self) -> None:
+        pickle_path = self._get_pickled_path()
+        image_paths = self._get_image_paths(self._image_dir)
 
-        # Resize images to correct dimensions
-        print(f'Resizing images to dimensions {width}x{height}...')
-        images = list(map(lambda image: image.resize((width, height)), images))
+        images = []
+        for i, image_path in enumerate(image_paths):
+            image = self._convert_image_path_to_pil_image(image_path)
+            images.append(image)
+            sys.stdout.write(f'\rResizing image: {i}')
+            
+        print(f'\nDone resizing images. Saving to {pickle_path}')
+            
+        with open(pickle_path, 'wb') as f:
+            pickle.dump(images, f)
+            
+        print('Done saving images!')
 
-        print('Image preprocessing complete!')
+    def _get_images(self) -> List['Image']:
+        pickled_path = self._get_pickled_path()
+        print(pickled_path)
+                
+        if os.path.exists(pickled_path):
+            print(f'Pickled file {pickled_path} already exists.')
+        else:
+            print('Found no pickled file, resizing images...')
+            self.pickle()
+        
+        with open(pickled_path, 'rb') as f:
+            images = pickle.load(f)
+            
         return images
 
+    def _convert_image_path_to_pil_image(self, image_path: str) -> Image:
+        image = Image.open(image_path)
+        image = image.resize((self._width, self._height))
+        return image
 
+    def _convert_images_thread(self, image_paths: List[str]) -> None:
+        print('Convert image thread started')
+        
+        image_path_index = 0
+        total_images = len(image_paths)
+
+        while self.is_playing():
+            image_path = image_paths[image_path_index]
+            image = self._convert_image_path_to_pil_image(image_path)
+            self._images.put(image)
+            image_path_index = (image_path_index + 1) % total_images
+            
+    def _get_pickled_path(self) -> str:
+        return Path(self._image_dir).parent.joinpath('pickled')
 
 class AudioPlayer:
 
