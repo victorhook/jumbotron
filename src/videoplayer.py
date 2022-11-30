@@ -50,15 +50,15 @@ class VideoPlayer:
         audio_thread.start()
 
         while self._playing.is_set():
-            
+
             for image_nbr, image in enumerate(self._images):
                 before_display = time.time()
                 self._display.show_image(image)
                 after_display = time.time()
 
-                dt = after_display - t0            
+                dt = after_display - t0
                 fps_counter += 1
-                
+
                 if dt > 1:
                     print(f'\rFPS: {fps_counter}')
                     t0 = after_display + (1 - dt)
@@ -67,7 +67,7 @@ class VideoPlayer:
                 next_frame = before_display + frame_delay
                 if next_frame > after_display:
                     time.sleep(next_frame - after_display)
-                
+
         print('Video player ending')
         audio_thread.join()
 
@@ -82,7 +82,7 @@ class VideoPlayer:
 
     def is_playing(self) -> bool:
         return self._playing.is_set()
-    
+
     def _show_frame(self) -> None:
         import time
         #print(time.time())
@@ -129,18 +129,14 @@ class AudioPlayer:
         if audio_path is None:
             print('Audio path is None, not playing any audio!')
             return
-        
+
         global pygame_is_initialized
         if not pygame_is_initialized:
             print('Initializing pygame mixer')
-            # No clue if all this madness is really needed...
-            pygame.mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=4096)
             pygame.mixer.init()
-            pygame.init()
             pygame_is_initialized = True
 
-        self._stop = Event()
-        self._stop.set()
+        self._is_playing = False
         self._sound = pygame.mixer.Sound(audio_path)
         print(f'Audio path: {audio_path}')
 
@@ -152,15 +148,14 @@ class AudioPlayer:
             print('Audio already playing!')
             return
 
-        self._stop.clear()
         print('Audio starting')
+        self._is_playing = True
 
         playing = self._sound.play()
-        while playing.get_busy():
+        while playing.get_busy() and self.is_playing():
             pygame.time.delay(100)
-        #self._stop.wait()
-            
-        print('Stopping!')
+
+        print('Audio stopping')
         playing.stop()
 
     def stop(self) -> None:
@@ -169,9 +164,8 @@ class AudioPlayer:
 
         if not self.is_playing():
             print('Audio player not playing!')
-            return
 
-        self._stop.set()
+        self._is_playing = False
 
     def is_playing(self) -> bool:
-        return not self._stop.is_set()
+        return self._is_playing

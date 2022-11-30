@@ -9,32 +9,32 @@ from pathlib import Path
 from typing import List
 from threading import Thread
 import subprocess
-
+import logging
 
 # Fix import path
-sys.path.append(str(Path(__file__).absolute().parent.parent))
+sys.path.append(str(Path(__file__).absolute().parent.parent.joinpath('src')))
 from client import Client
 
 
 PROJECT_ROOT_PATH = Path(__file__).absolute().parent.parent
 VIDEO_DIR = PROJECT_ROOT_PATH.joinpath('videos')
 
-
 stdout_debug = Queue()
 
 
-class Stdout:
+class Stdout(logging.StreamHandler):
     ''' Hijack stdout so we can debug print msgs. '''
     def __init__(self) -> None:
+        super().__init__()
         self._out = sys.stdout
         sys.stdout = self
+        self.formatter = logging.Formatter('[%(name)s::%(levelname)s] %(message)s\n')
+
+    def emit(self, record) -> None:
+        text = self.formatter.format(record)
+        self.write(text)
 
     def write(self, msg: str) -> None:
-        if msg.endswith('\n'):
-            debug_msg = msg[:-2]
-        else:
-            debug_msg = msg
-
         stdout_debug.put(msg)
         self._out.write(msg)
 
@@ -44,14 +44,10 @@ class Stdout:
     def fileno(self) -> int:
         return self._out.fileno()
 
-
-app = Flask(__name__, template_folder='.')
 stdout = Stdout()
-client = Client()
-
-import logging
+logging.basicConfig(level=logging.DEBUG, handlers=[stdout])
 logging.getLogger("werkzeug").disabled = True
-
+logger = logging.getLogger(__name__)
 
 @dataclass
 class Video:
@@ -62,22 +58,27 @@ class Video:
     audio_path: str
 
 
+@dataclass
+class Status:
+    type: str
+    msg: str
+
+
 def convert_video(video_path: str, image_path: str, audio_path: str, fps: int) -> None:
     cmd = f'ffmpeg -i {video_path} -r {fps} -f image2 {image_path}/image-%4d.jpg'
-    print('Converting video to images using ffmpeg...')
+    logger.info('Converting video to images using ffmpeg...')
     subprocess.Popen(cmd.split(' '), stdout=stdout, stderr=stdout)
-    print('Video conversion complete!')
+    logger.info('Video conversion complete!')
 
-    print('Extracting audio...')
+    logger.info('Extracting audio...')
     cmd = f'ffmpeg -i {video_path} -q:a 0 -map a {audio_path}'
     subprocess.Popen(cmd.split(' '), stdout=stdout, stderr=stdout)
-    print('Audio extraction complete!')
-
+    logger.info('Audio extraction complete!')
 
 
 class VideoDirectory:
 
-    @staticmethod   
+    @staticmethod
     def get_videos() -> List[Video]:
         videos = []
         for video in os.listdir(VIDEO_DIR):
@@ -125,15 +126,16 @@ class VideoDirectory:
 
         # Video file path
         filepath = dirpath.joinpath(video.filename)
-        print(f'Saving video {video.filename} to {filepath}')
+        logger.info(f'Saving video {video.filename} to {filepath}')
         video.save(filepath)
 
-        print('Converting video with ffmpeg')
+        logger.info('Converting video with ffmpeg')
         Thread(target=convert_video, args=(filepath, image_path, audio_path, fps)).start()
 
 
-
 video_dir = VideoDirectory()
+client = Client()
+app = Flask(__name__, template_folder='.')
 
 
 # -- WEB -- #
@@ -161,29 +163,26 @@ def play():
 
     video = video_dir.get_video(video)
 
-    print(f'Playing {video.name}')
-
-    with Client() as client:
-        client.play_video(video.image_path, video.fps)
-        client.play_audio(video.audio_path)
+    logger.info(f'Playing {video.name}')
+    client.play_video(video.image_path, video.fps, video.audio_path)
 
     return ('', 204)
 
 
 @app.route('/stop', methods=['POST'])
 def stop():
-    print(f'Stopping video!')
-    with Client() as client:
-        client.stop_video()
-        client.stop_audio()
-
+    logger.info(f'Stopping video!')
+    client.stop_video()
     return ('', 204)
 
 
-@dataclass
-class Status:
-    type: str
-    msg: str
+@app.route('/set_color', methods=['POST'])
+def set_color():
+    color = request.form.get('color')
+    logger.info(f'Setting color: {color}')
+    client.set_led(color)
+    return ('', 204)
+
 
 @app.route('/status')
 def status():

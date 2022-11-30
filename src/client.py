@@ -1,11 +1,12 @@
 import socket
-from queue import Queue
-from threading import Thread, Event
 import traceback
+import logging
 
 
 SERVER_IP   = '127.0.0.1'
 SERVER_PORT = 9999
+
+logger = logging.getLogger(__name__)
 
 
 class Client:
@@ -16,15 +17,15 @@ class Client:
     def __enter__(self) -> 'Client':
         self.connect()
         return self
-    
+
     def __exit__(self, *_) -> None:
         self.disconnect()
-    
+
     def disconnect(self) -> None:
         if self._sock is not None:
             self._sock.close()
         self._sock = None
-        
+
     def connect(self) -> bool:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,21 +34,27 @@ class Client:
             self._sock = sock
             return True
         except Exception as e:
-            print(traceback.format_exc())
+            logger.info(traceback.format_exc())
             return False
-        
+
     def _send(self, msg: str) -> None:
         if self._sock is None:
-            raise RuntimeError('Client must be connected first!')
-        
+            logger.info('Client must be connected first, trying to connect...')
+            if not self.connect():
+                logger.info('Failed to connect!')
+                return
+
         tx = msg.encode('utf-8')
         self._sock.send(tx)
         rx = self._sock.recv(1024).decode('utf-8')
-        print(f'TX: {msg}')
-        print(f'RX: {rx}')
-        
-    def play_video(self, image_dir: str, fps: int) -> None:
-        self._send(f'PLAY_VIDEO image_dir={image_dir} fps={fps}')
+        logger.info(f'TX: {msg}')
+        logger.info(f'RX: {rx}')
+
+    def play_video(self, image_dir: str, fps: int, audio_path: str = None) -> None:
+        cmd = f'PLAY_VIDEO image_dir={image_dir} fps={fps}'
+        if audio_path is not None:
+            cmd += f' audio={audio_path}'
+        self._send(cmd)
 
     def stop_video(self) -> None:
         self._send('STOP_VIDEO')
@@ -57,6 +64,6 @@ class Client:
 
     def stop_audio(self) -> None:
         self._send('STOP_AUDIO')
-        
+
     def set_led(self, color: str) -> None:
         self._send(f'SET_LED led={color}')

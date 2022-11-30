@@ -17,20 +17,21 @@
             background-color: rgb(2, 2, 110);
             color: white;
         }
-        button {
+        button, input[type=submit] {
             background-color: rgb(14, 14, 221);;
             color: white;
             border: None;
             border-radius: 10px;
+            padding: 1em;
         }
     </style>
 
-    <div class="container">
+    <div class="container-fluid">
 
         <a class="nav-link" href="/">HOME</a>
 
         <div class="row p-5">
-            <div class="col-6">
+            <div class="col-4">
                 <h3>Upload videos</h3>
                 <hr>
                 <form method="POST" enctype="multipart/form-data">
@@ -51,13 +52,13 @@
                 </form>
 
                 <div class="row">
-                    <textarea class="col-12" id="text" style="height: 20em">
+                    <textarea class="col-12" id="text" style="height: 30em">
                     </textarea>
                 </div>
 
             </div>
 
-            <div class="col-6">
+            <div class="col-4">
                 <div class="videos">
                     <h3>Available Videos</h3>
                     <hr>
@@ -68,10 +69,23 @@
                         {% for video in videos %}
                             <li class="row">
                                 <span class="col-7 m-1 p-3">{{ video.name }} - {{ video.fps }} FPS</span>
-                                <button class="col-3 m-1 p-1" onclick="play('{{ video.name }}')">Play</button>
+                                <button class="col-3 m-1" onclick="play('{{ video.name }}')">Play</button>
                             </li>
                         {% endfor %}
                     </ul>
+                </div>
+            </div>
+
+            <div class="col-4">
+                <div class="videos">
+                    <h3>Set color</h3>
+                    <hr>
+                    <form method="POST" action="/set_color" enctype="multipart/form-data">
+                        <div class="row">
+                            <input class="col-6" type="color" name="color">
+                            <input class="col-6" type="submit" value="Set">
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -101,7 +115,7 @@
                 .then(res => {
                     if (res.msg) {
                         let msg;
-                        if (res.msg.endsWith('\n')) {
+                        if (res.msg.endsWith('\n\n')) {
                             msg = res.msg.substr(0, res.msg.length-2);
                         } else {
                             msg = res.msg;

@@ -18,14 +18,14 @@ DEFAULT_COLOR     = '#ffffff'
 
 
 class VideoPlayerServer:
-    
+
     def __init__(self) -> None:
         self._sock: socket.socket = None
         self._video_player: VideoPlayer = None
         self._audio_player: AudioPlayer = None
         self._leds = Led()
         self._leds.set_color(DEFAULT_COLOR)
-        
+
         self._command_handlers = {
             'PLAY_VIDEO': self._cmd_play_video,
             'STOP_VIDEO': self._cmd_stop_video,
@@ -61,14 +61,14 @@ class VideoPlayerServer:
                 msg = msg.decode('utf-8')
                 msg = msg.split(' ')
                 command = msg[0]
-                
+
                 if len(msg) > 1:
                     kwargs = [m.strip() for m in msg[1:]]
                     keypairs = [keypair.split('=') for keypair in kwargs]
                     kwargs = {keypair[0]: keypair[1] for keypair in keypairs}
                 else:
                     kwargs = {}
-            
+
                 if command not in self._command_handlers:
                     err = f'Failed to recognize command {command}!\n'
                     print(err)
@@ -79,7 +79,7 @@ class VideoPlayerServer:
                 command_handler = self._command_handlers[command]
                 print(f'Command: {command} with kwargs: {kwargs}, command-handler: {command_handler.__name__}')
                 Thread(target=command_handler, args=(kwargs, )).start()
-                
+
                 con.send(f'{command} OK\n'.encode('utf-8'))
             except ConnectionResetError as e:
                 # Nothing to do..
@@ -95,7 +95,8 @@ class VideoPlayerServer:
 
         self._video_player = VideoPlayer(
             int(kwargs.get('fps', 10)),
-            kwargs.get('image_dir', DEFAULT_IMAGE_DIR)
+            kwargs.get('image_dir', DEFAULT_IMAGE_DIR),
+            kwargs.get('audio')
         )
 
         self._video_player.start()
@@ -131,7 +132,7 @@ class VideoPlayerServer:
             time.sleep(.05)
 
         self._audio_player = None
-        
+
     def _cmd_set_led(self, kwargs: dict) -> None:
         self._leds.set_color(kwargs.get('color', DEFAULT_COLOR))
 
