@@ -66,4 +66,4 @@ class Client:
         self._send('STOP_AUDIO')
 
     def set_led(self, color: str) -> None:
-        self._send(f'SET_LED led={color}')
+        self._send(f'SET_LED color={color}')

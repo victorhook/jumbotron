@@ -68,8 +68,8 @@
                     <ul>
                         {% for video in videos %}
                             <li class="row">
-                                <span class="col-7 m-1 p-3">{{ video.name }} - {{ video.fps }} FPS</span>
-                                <button class="col-3 m-1" onclick="play('{{ video.name }}')">Play</button>
+                                <span class="col-8 m-1 p-3">{{ video.name }} - {{ video.fps }} FPS</span>
+                                <button class="col-2 m-1" onclick="play('{{ video.name }}')">Play</button>
                             </li>
                         {% endfor %}
                     </ul>

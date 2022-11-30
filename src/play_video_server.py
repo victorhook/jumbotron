@@ -3,6 +3,7 @@ import sys
 from typing import List
 import time
 from threading import Thread
+from pathlib import Path
 
 # Hardware
 from videoplayer import VideoPlayer, AudioPlayer
@@ -96,7 +97,8 @@ class VideoPlayerServer:
         self._video_player = VideoPlayer(
             int(kwargs.get('fps', 10)),
             kwargs.get('image_dir', DEFAULT_IMAGE_DIR),
-            kwargs.get('audio')
+            kwargs.get('audio'),
+            self._leds
         )
 
         self._video_player.start()
@@ -139,5 +141,11 @@ class VideoPlayerServer:
 
 
 if __name__ == '__main__':
-    video_player_server = VideoPlayerServer()
-    video_player_server.start(IP, PORT)
+    try:
+        video_player_server = VideoPlayerServer()
+        video_player_server.start(IP, PORT)
+    finally:
+        import pygame
+        pygame.mixer.quit()
+        pygame.quit()
+

@@ -15,13 +15,12 @@ class Led:
         self._leds = neopixel.NeoPixel(board.D12, NBR_OF_LEDS)
 
     def set_color_single_led(self, led_nbr: int, color: str) -> None:
-        ''' Color is string, as hex. '''
-        self._leds[led_nbr] = color
+        ''' Color is string, as hex. led_nbr starts at 1! '''
+        self._leds[led_nbr-1] = self._hex_color_to_tuple(color)
 
     def set_color(self, color: str) -> None:
         ''' Color is string, as hex. '''
-        color = self._hex_color_to_tuple(color)
-        self._leds.fill(color)
+        self._leds.fill(self._hex_color_to_tuple(color))
 
     def _hex_color_to_tuple(self, color: str) -> Color:
         color = color.split('#')[-1]
